@@ -3,16 +3,19 @@ classDiagram
         +String name
         +int hunger
         +int health
+        +List~Task~ tasks
         +eat()
         +walk()
+        +addTask(task)
     }
 
     class Owner {
         +String name
+        +Scheduler scheduler
         +List~Pet~ pets
         +addPet(pet)
-        +scheduleWalk(pet, time)
-        +seeTodaysTasks()
+        +scheduleTask(pet, task)
+        +getAllTasks()
     }
 
     class Task {
@@ -24,12 +27,11 @@ classDiagram
     }
 
     class Scheduler {
-        +List~Task~ tasksRemaining
-        +scheduleTask(task)
-        +makePlan()
+        +scheduleTask(pet, task)
+        +makePlan(pets)
     }
 
     Owner "1" --> "*" Pet : owns
-    Scheduler "1" --> "*" Task : manages
     Owner "1" --> "1" Scheduler : uses
-    Task "*" --> "1" Pet : concerns
+    Pet "1" --> "*" Task : has
+    Scheduler ..> Pet : organizes tasks across

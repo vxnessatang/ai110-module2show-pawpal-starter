@@ -5,12 +5,25 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+
+Owner has a pet. Scheduler has a task.
+
 - What classes did you include, and what responsibilities did you assign to each?
+
+1. Pet (Attributes: name, hunger, health; Methods: eat, walk)
+2. Owner (Attibutes: name, owns pet; Methods: add pet, schedule a walk, see today's tasks)
+3. Task (Attributes: task description, time, priority, completed; Methods: check off task)
+4. Scheduler (Attributes: none; Methods: schedule task, get all tasks, make plan)
 
 **b. Design changes**
 
 - Did your design change during implementation?
+
+Yes
+
 - If yes, describe at least one change and why you made it.
+
+Time is now datetime.time to make comparing them more reliable than if they were strings. Owner now has a scheduler field so its methods can delegate to it. Pet now also holds a list of tasks that can be added to.
 
 ---
 
@@ -19,12 +32,19 @@
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+
+The scheduler considers time and priority.
+
 - How did you decide which constraints mattered most?
+
+Since the user wouldn't want tasks overlapping with each other, I thought time would be the constraint that mattered the most. Priority also seemed important because the user may schedule tasks that would be good to do but aren't as important as other tasks.
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
+
+One tradeoff the scheduler makes is sacrificing preference for time and priority. The tradeoff is reasonable for this scenario because it is a basic scheduler, and the user can set the priority for the tasks based on their preferences when they add the task.
 
 ---
 
