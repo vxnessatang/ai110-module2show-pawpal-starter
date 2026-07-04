@@ -1,0 +1,35 @@
+classDiagram
+    class Pet {
+        +String name
+        +int hunger
+        +int health
+        +eat()
+        +walk()
+    }
+
+    class Owner {
+        +String name
+        +List~Pet~ pets
+        +addPet(pet)
+        +scheduleWalk(pet, time)
+        +seeTodaysTasks()
+    }
+
+    class Task {
+        +String description
+        +Time time
+        +int priority
+        +boolean completed
+        +checkOff()
+    }
+
+    class Scheduler {
+        +List~Task~ tasksRemaining
+        +scheduleTask(task)
+        +makePlan()
+    }
+
+    Owner "1" --> "*" Pet : owns
+    Scheduler "1" --> "*" Task : manages
+    Owner "1" --> "1" Scheduler : uses
+    Task "*" --> "1" Pet : concerns
