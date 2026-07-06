@@ -81,19 +81,44 @@ WARNING - Conflict on 2026-07-05 at 09:00: Give the dog medication (Woofington),
 
 ## 🧪 Testing PawPal+
 
+Run the full test suite from the project root:
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+### What the tests cover
+
+The suite (`tests/test_pawpal.py`) verifies the core scheduling behaviors:
+
+- **Task basics** — `check_off()` marks a task complete; adding a task increases a pet's task count.
+- **Sorting correctness** — `sort_by_time()` returns tasks in chronological order regardless of insertion order, and does not mutate the caller's list.
+- **Recurrence logic** — completing a `daily` task marks the original done *and* creates a fresh task for the following day; a one-off task spawns no copy.
+- **Conflict detection** — two tasks in the same date+time slot produce a single warning naming both (including cross-pet clashes), while non-clashing or empty inputs return no warnings and never crash.
+
+### Sample test run
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+collecting ... collected 8 items
+
+tests/test_pawpal.py::test_task_completion PASSED                        [ 12%]
+tests/test_pawpal.py::test_task_addition_increases_pet_task_count PASSED [ 25%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 37%]
+tests/test_pawpal.py::test_sort_by_time_does_not_mutate_input PASSED     [ 50%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_days_task PASSED [ 62%]
+tests/test_pawpal.py::test_completing_one_off_task_creates_no_new_task PASSED [ 75%]
+tests/test_pawpal.py::test_find_conflicts_flags_duplicate_times PASSED   [ 87%]
+tests/test_pawpal.py::test_find_conflicts_returns_empty_when_no_clash PASSED [100%]
+
+============================== 8 passed in 0.03s ==============================
 ```
+
+### Confidence Level
+
+**4 out of 5 stars**
+
+All 8 tests pass and cover the happy paths plus key edge cases (empty input, one-off vs. recurring, cross-pet conflicts) for every smarter-scheduling feature. One star was docked because a few edge cases aren't being tested yet (month/year rollover for recurring dates, completed tasks being excluded from conflicts, and duplicate pet names in filtering), so confidence is high but not exhaustive.
 
 ## 📐 Smarter Scheduling
 
