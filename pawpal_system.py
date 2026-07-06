@@ -8,8 +8,8 @@ Ownership model:
     Scheduler organizes tasks *across* all of an owner's pets.
 """
 
-from dataclasses import dataclass, field
-from datetime import time
+from dataclasses import dataclass, field, replace
+from datetime import date, time, timedelta
 
 
 @dataclass
@@ -20,10 +20,34 @@ class Task:
     time: time
     priority: int  # lower number = higher priority (1 = top priority)
     completed: bool = False
+    pet_name: str | None = None  # set when the task is attached to a pet
+    frequency: str | None = None  # "daily", "weekly", or None (one-off)
+    scheduled_date: date | None = None  # the day this task is scheduled for
 
     def check_off(self) -> None:
         """Mark this task as completed."""
         self.completed = True
+
+    def next_occurrence(self) -> "Task | None":
+        """Return a fresh, uncompleted copy for this task's next occurrence.
+
+        Returns None for one-off tasks (frequency is None). For recurring
+        tasks, timedelta advances the scheduled_date accurately — timedelta
+        handles month/year rollovers, so "today + 1 day" is always the real
+        next day.
+        """
+        if self.frequency is None:
+            return None
+
+        step = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}.get(
+            self.frequency
+        )
+        if step is None:
+            raise ValueError(f"Unknown frequency: {self.frequency!r}")
+
+        # Advance from the current scheduled_date if set, otherwise from today.
+        base = self.scheduled_date if self.scheduled_date is not None else date.today()
+        return replace(self, completed=False, scheduled_date=base + step)
 
 
 @dataclass
@@ -45,7 +69,8 @@ class Pet:
         self.hunger = min(100, self.hunger + 10)
 
     def add_task(self, task: Task) -> None:
-        """Attach a task to this pet."""
+        """Attach a task to this pet, stamping it with the pet's name."""
+        task.pet_name = self.name
         self.tasks.append(task)
 
 
@@ -80,6 +105,79 @@ class Scheduler:
     def schedule_task(self, pet: Pet, task: Task) -> None:
         """Add a task to a pet's task list."""
         pet.add_task(task)
+
+    def complete_task(self, pet: Pet, task: Task) -> "Task | None":
+        """Mark a task complete; if recurring, schedule its next occurrence.
+
+        Returns the newly scheduled task (for daily/weekly), or None for a
+        one-off task. The new instance is added to the same pet.
+        """
+        task.check_off()
+        next_task = task.next_occurrence()
+        if next_task is not None:
+            self.schedule_task(pet, next_task)
+        return next_task
+
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Return the tasks ordered by their scheduled time (earliest first).
+
+        Uses sorted() with a lambda `key` that pulls out each task's time.
+        Because Task.time is a datetime.time object, comparing them directly
+        already gives correct chronological order:
+
+            sorted(tasks, key=lambda t: t.time)
+
+        (If time were instead a string in "HH:MM" 24-hour format, the same
+        lambda would still sort correctly, since zero-padded "HH:MM" strings
+        compare in the right order alphabetically: "09:30" < "10:00".)
+        """
+        return sorted(tasks, key=lambda t: t.time)
+
+    def filter_tasks(
+        self,
+        tasks: list[Task],
+        completed: bool | None = None,
+        pet_name: str | None = None,
+    ) -> list[Task]:
+        """Return the subset of tasks matching the given filters.
+
+        completed: keep only completed (True) or pending (False) tasks;
+                   None keeps both.
+        pet_name:  keep only tasks belonging to the pet with this name.
+                   Each Task carries its own pet_name, so no lookup is needed.
+        """
+        result = tasks
+
+        if completed is not None:
+            result = [t for t in result if t.completed == completed]
+
+        if pet_name is not None:
+            result = [t for t in result if t.pet_name == pet_name]
+
+        return result
+
+    def find_conflicts(self, tasks: list[Task]) -> list[str]:
+        """Return a warning message for each pair of tasks at the same slot.
+
+        Lightweight strategy: group tasks by their (scheduled_date, time) slot,
+        and any slot holding more than one task is a conflict. Completed tasks
+        are ignored. Returns a list of human-readable warnings (empty if none)
+        rather than raising — the caller decides what to do with them.
+        """
+        slots: dict[tuple, list[Task]] = {}
+        for task in tasks:
+            if task.completed:
+                continue
+            slots.setdefault((task.scheduled_date, task.time), []).append(task)
+
+        warnings: list[str] = []
+        for (day, slot_time), clashing in slots.items():
+            if len(clashing) > 1:
+                who = ", ".join(f"{t.description} ({t.pet_name})" for t in clashing)
+                warnings.append(
+                    f"WARNING - Conflict on {day} at {slot_time.strftime('%H:%M')}: {who}"
+                )
+        return warnings
 
     def make_plan(self, pets: list[Pet]) -> list[Task]:
         """Build an ordered plan of outstanding tasks, sorted by time then priority."""

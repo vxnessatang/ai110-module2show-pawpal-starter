@@ -47,11 +47,36 @@ pip install -r requirements.txt
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
 ```
-# e.g.:
-Today's Schedule:
-  08:00 - Feed the dog
-  08:30 - Feed the cat
-  09:00 - Give the dog medication
+All tasks (sorted by time):
+  2026-07-05 08:00 - Feed the dog (Woofington, DONE)
+  2026-07-06 08:00 - Feed the dog (Woofington, TO-DO)
+  2026-07-05 08:30 - Feed the cat (Whiskers, TO-DO)
+  2026-07-05 09:00 - Give the dog medication (Woofington, TO-DO)
+  2026-07-05 09:00 - Take the cat to the vet (Whiskers, TO-DO)
+  2026-07-05 17:00 - Walk the dog (Woofington, TO-DO)
+
+Pending only:
+  2026-07-06 08:00 - Feed the dog (Woofington, TO-DO)
+  2026-07-05 08:30 - Feed the cat (Whiskers, TO-DO)
+  2026-07-05 09:00 - Give the dog medication (Woofington, TO-DO)
+  2026-07-05 09:00 - Take the cat to the vet (Whiskers, TO-DO)
+  2026-07-05 17:00 - Walk the dog (Woofington, TO-DO)
+
+Completed only:
+  2026-07-05 08:00 - Feed the dog (Woofington, DONE)
+
+Woofington (dog):
+  2026-07-05 08:00 - Feed the dog (Woofington, DONE)
+  2026-07-06 08:00 - Feed the dog (Woofington, TO-DO)
+  2026-07-05 09:00 - Give the dog medication (Woofington, TO-DO)
+  2026-07-05 17:00 - Walk the dog (Woofington, TO-DO)
+
+Whiskers (cat):
+  2026-07-05 08:30 - Feed the cat (Whiskers, TO-DO)
+  2026-07-05 09:00 - Take the cat to the vet (Whiskers, TO-DO)
+
+Schedule conflicts:
+WARNING - Conflict on 2026-07-05 at 09:00: Give the dog medication (Woofington), Take the cat to the vet (Whiskers)
 ```
 
 ## 🧪 Testing PawPal+
@@ -72,14 +97,21 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+PawPal+ adds four "smarter scheduling" features on top of the core classes. Each is implemented on the `Scheduler` (with recurrence logic living on `Task`):
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time()` | Returns tasks earliest-first using `sorted()` with a `key=lambda t: t.time`. Since `Task.time` is a `datetime.time`, values compare chronologically directly. |
+| Filtering | `Scheduler.filter_tasks()` | Filters by completion status (`completed=True/False`) and/or by pet (`pet_name=...`). Both filters are optional and stack; passing none returns everything. |
+| Conflict handling | `Scheduler.find_conflicts()` | Groups tasks by their exact `(scheduled_date, time)` slot; any slot with more than one pending task yields a warning string (naming each task and its pet). Returns warnings instead of raising, so the program never crashes. Detects both same-pet and cross-pet clashes. |
+| Recurring tasks | `Task.next_occurrence()`, `Scheduler.complete_task()` | `complete_task()` marks a task done and, if it recurs, auto-schedules the next instance on the same pet. `next_occurrence()` clones the task with `timedelta(days=1)` (daily) or `timedelta(weeks=1)` (weekly) to advance `scheduled_date` accurately across month/year boundaries. |
+
+### Sample output
+
+```
+Schedule conflicts:
+WARNING - Conflict on 2026-07-05 at 09:00: Give the dog medication (Woofington), Take the cat to the vet (Whiskers)
+```
 
 ## 📸 Demo Walkthrough
 

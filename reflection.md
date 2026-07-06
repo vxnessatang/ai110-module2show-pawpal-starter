@@ -23,7 +23,7 @@ Yes
 
 - If yes, describe at least one change and why you made it.
 
-Time is now datetime.time to make comparing them more reliable than if they were strings. Owner now has a scheduler field so its methods can delegate to it. Pet now also holds a list of tasks that can be added to.
+Time is now datetime.time to make comparing them more reliable than if they were strings. Owner now has a scheduler field so its methods can delegate to it. Pet now holds a list of tasks that can be added to. Task now has a pet name field so it's easy to tell which pet the task belongs to.
 
 ---
 
@@ -46,6 +46,8 @@ Since the user wouldn't want tasks overlapping with each other, I thought time w
 
 One tradeoff the scheduler makes is sacrificing preference for time and priority. The tradeoff is reasonable for this scenario because it is a basic scheduler, and the user can set the priority for the tasks based on their preferences when they add the task.
 
+Another tradeoff is in the scheduler's conflict detection. find_conflicts() only flags tasks that share the exact same date and time rather than accounting for overlapping durations. Two tasks scheduled a minute apart won't be flagged because the tasks have no durations to overlap. This tradeoff is reasonable for a basic scheduler because the user can determine how much time tasks would realistically take when scheduling them and they would still receive a warning if they aaccidentally scheduled tasks for the same time.
+
 ---
 
 ## 3. AI Collaboration
@@ -53,12 +55,22 @@ One tradeoff the scheduler makes is sacrificing preference for time and priority
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
+I used AI to help me refine my initial design and corresponding UML diagram. It was also useful for debugging and refactoring my code.
+
 - What kinds of prompts or questions were most helpful?
+
+Prompts that provided detailed and specific context were the most helpful.
 
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
+
+One moment where I did not accept an AI suggestion as-is is when it suggested to turn my schedule_task() method into schedule_walk() instead. I did not accept this because that was not the direction I was going for in my design.
+
 - How did you evaluate or verify what the AI suggested?
+
+I visualized the new suggestions in a UML diagram and noticed this particular change. I reflected on what I wanted in the design and decided against it. Walking a pet can be a task but not all tasks will be walking.
 
 ---
 
