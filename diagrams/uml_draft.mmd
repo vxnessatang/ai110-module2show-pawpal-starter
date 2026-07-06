@@ -6,16 +6,16 @@ classDiagram
         +List~Task~ tasks
         +eat()
         +walk()
-        +addTask(task)
+        +add_task(task)
     }
 
     class Owner {
         +String name
         +Scheduler scheduler
         +List~Pet~ pets
-        +addPet(pet)
-        +scheduleTask(pet, task)
-        +getAllTasks()
+        +add_pet(pet)
+        +schedule_task(pet, task)
+        +get_all_tasks()
     }
 
     class Task {
@@ -23,15 +23,25 @@ classDiagram
         +Time time
         +int priority
         +boolean completed
-        +checkOff()
+        +String pet_name
+        +String frequency
+        +Date scheduled_date
+        +check_off()
+        +next_occurrence() Task
     }
 
     class Scheduler {
-        +scheduleTask(pet, task)
-        +makePlan(pets)
+        +schedule_task(pet, task)
+        +sort_by_time(tasks) List~Task~
+        +filter_tasks(tasks, completed, pet_name) List~Task~
+        +find_conflicts(tasks) List~String~
+        +complete_task(pet, task) Task
+        +make_plan(pets) List~Task~
     }
 
     Owner "1" --> "*" Pet : owns
     Owner "1" --> "1" Scheduler : uses
     Pet "1" --> "*" Task : has
     Scheduler ..> Pet : organizes tasks across
+    Scheduler ..> Task : sorts, filters, checks conflicts
+    Task ..> Task : next_occurrence creates

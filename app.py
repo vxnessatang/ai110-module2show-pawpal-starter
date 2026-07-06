@@ -1,3 +1,5 @@
+from datetime import date
+
 from pawpal_system import Owner, Pet, Task
 import streamlit as st
 
@@ -50,7 +52,7 @@ if "owner" not in st.session_state:
 owner: Owner = st.session_state.owner
 
 # Priority label -> number (1 = top priority, matching the backend convention).
-PRIORITY_MAP = {"high": 1, "medium": 2, "low": 3}
+PRIORITY_MAP = {"High": 1, "Medium": 2, "Low": 3}
 
 st.markdown("### Add a Pet")
 col_p1, col_p2 = st.columns([3, 1])
@@ -69,40 +71,118 @@ else:
 
 st.markdown("### Schedule a Task")
 if owner.pets:
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     with col1:
         target_pet_name = st.selectbox("Pet", [pet.name for pet in owner.pets])
     with col2:
         task_title = st.text_input("Task title", value="Morning walk")
     with col3:
-        task_time = st.time_input("Time")
+        priority_label = st.selectbox("Priority", ["High", "Medium", "Low"])
+
+    col4, col5, col6 = st.columns(3)
     with col4:
-        priority_label = st.selectbox("Priority", ["high", "medium", "low"])
+        task_date = st.date_input("Date", value=date.today())
+    with col5:
+        task_time = st.time_input("Time")
+    with col6:
+        frequency_label = st.selectbox("Repeats", ["One-off", "Daily", "Weekly"])
 
     if st.button("Add task"):
         target_pet = next(pet for pet in owner.pets if pet.name == target_pet_name)
         owner.schedule_task(
             target_pet,
-            Task(task_title, task_time, PRIORITY_MAP[priority_label]),
+            Task(
+                task_title,
+                task_time,
+                PRIORITY_MAP[priority_label],
+                frequency=None if frequency_label == "One-off" else frequency_label,
+                scheduled_date=task_date,
+            ),
         )
         st.success(f"Scheduled '{task_title}' for {target_pet_name}.")
 
-tasks = owner.get_all_tasks()
-if tasks:
-    st.write("Current tasks:")
-    st.table(
-        [
-            {
-                "time": task.time.strftime("%H:%M"),
-                "description": task.description,
-                "priority": task.priority,
-                "completed": task.completed,
-            }
-            for task in tasks
-        ]
-    )
-else:
+scheduler = owner.scheduler
+all_tasks = owner.get_all_tasks()
+
+st.divider()
+st.subheader("📋 Current Tasks")
+
+if not all_tasks:
     st.info("No tasks yet. Add one above.")
+else:
+    # --- Conflict detection: surface clashes prominently before the list ---
+    conflicts = scheduler.find_conflicts(all_tasks)
+    if conflicts:
+        st.warning(
+            "**Scheduling conflict detected!** "
+            "These tasks fall at the same date and time — you may not be able to do both:"
+        )
+        for warning in conflicts:
+            # Strip the "WARNING - " prefix; Streamlit's icon already signals it.
+            st.warning(warning.replace("WARNING - ", ""), icon="⚠️")
+    else:
+        st.success("No scheduling conflicts — you're all set! 🎉")
+
+    # --- Filtering: let the owner narrow the list by pet and status ---
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        pet_choice = st.selectbox(
+            "Filter by pet", ["All pets"] + [pet.name for pet in owner.pets]
+        )
+    with col_f2:
+        status_choice = st.selectbox("Filter by status", ["All", "Pending", "Completed"])
+
+    pet_name = None if pet_choice == "All pets" else pet_choice
+    completed = {"All": None, "Pending": False, "Completed": True}[status_choice]
+
+    # Filter, then sort chronologically — both handled by the Scheduler.
+    filtered = scheduler.filter_tasks(all_tasks, completed=completed, pet_name=pet_name)
+    ordered = scheduler.sort_by_time(filtered)
+
+    if ordered:
+        st.table(
+            [
+                {
+                    "Date": task.scheduled_date,
+                    "Time": task.time.strftime("%H:%M"),
+                    "Task": task.description,
+                    "Pet": task.pet_name,
+                    "Priority": task.priority,
+                    "Repeats": task.frequency or "One-off",
+                    "Status": "✅ Done" if task.completed else "⏳ To-do",
+                }
+                for task in ordered
+            ]
+        )
+    else:
+        st.caption("No tasks match the current filters.")
+
+    # --- Recurring logic: complete a task; daily/weekly auto-reschedules ---
+    st.markdown("#### Mark a task complete")
+    pending = scheduler.sort_by_time(
+        scheduler.filter_tasks(all_tasks, completed=False)
+    )
+    if pending:
+        labels = {
+            f"{t.scheduled_date} {t.time.strftime('%H:%M')} — {t.description} ({t.pet_name})": t
+            for t in pending
+        }
+        choice = st.selectbox("Choose a pending task", list(labels))
+        if st.button("Complete task"):
+            task = labels[choice]
+            pet = next(p for p in owner.pets if p.name == task.pet_name)
+            new_task = scheduler.complete_task(pet, task)
+            if new_task is not None:
+                st.success(
+                    f"Completed '{task.description}'. "
+                    f"Next {task.frequency} occurrence scheduled for "
+                    f"{new_task.scheduled_date}."
+                )
+            else:
+                st.success(f"Completed '{task.description}'.")
+            st.rerun()
+    else:
+        st.caption("Nothing pending — every task is done! 🎉")
 
 st.divider()
 
@@ -110,10 +190,10 @@ st.subheader("Build Schedule")
 st.caption("Calls Scheduler.make_plan() to order tasks by time, then priority.")
 
 if st.button("Generate schedule"):
-    plan = owner.scheduler.make_plan(owner.pets)
+    plan = scheduler.make_plan(owner.pets)
     if plan:
         st.write(f"Today's plan for {owner.name}:")
         for task in plan:
-            st.markdown(f"- **{task.time.strftime('%H:%M')}** — {task.description}")
+            st.markdown(f"- **{task.time.strftime('%H:%M')}** - {task.description}")
     else:
         st.warning("No tasks to schedule yet. Add some tasks first.")

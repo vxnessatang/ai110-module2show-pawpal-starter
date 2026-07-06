@@ -22,6 +22,17 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## ✨ Features
+
+PawPal+ implements the following scheduling algorithms (all in `pawpal_system.py`):
+
+- **Sorting by time** - `Scheduler.sort_by_time()` orders any list of tasks chronologically (earliest first), regardless of the order they were added.
+- **Filtering by pet** - `Scheduler.filter_tasks(pet_name=...)` narrows the list to a single pet's tasks.
+- **Filtering by status** - `Scheduler.filter_tasks(completed=...)` shows only pending or only completed tasks. Filters stack, so you can combine pet + status.
+- **Conflict warnings** - `Scheduler.find_conflicts()` detects when two tasks share the exact same date and time (including clashes between different pets) and returns a plain-language warning instead of crashing.
+- **Daily & weekly recurrence** - completing a repeating task via `Scheduler.complete_task()` automatically schedules the next occurrence (`Task.next_occurrence()` advances the date by one day or one week using `timedelta`).
+- **Daily plan builder** - `Scheduler.make_plan()` produces an ordered, de-conflicted plan of outstanding tasks, sorted by time then priority.
+
 ## Getting started
 
 ### Setup
@@ -91,10 +102,10 @@ python -m pytest
 
 The suite (`tests/test_pawpal.py`) verifies the core scheduling behaviors:
 
-- **Task basics** — `check_off()` marks a task complete; adding a task increases a pet's task count.
-- **Sorting correctness** — `sort_by_time()` returns tasks in chronological order regardless of insertion order, and does not mutate the caller's list.
-- **Recurrence logic** — completing a `daily` task marks the original done *and* creates a fresh task for the following day; a one-off task spawns no copy.
-- **Conflict detection** — two tasks in the same date+time slot produce a single warning naming both (including cross-pet clashes), while non-clashing or empty inputs return no warnings and never crash.
+- **Task basics** - `check_off()` marks a task complete; adding a task increases a pet's task count.
+- **Sorting correctness** - `sort_by_time()` returns tasks in chronological order regardless of insertion order, and does not mutate the caller's list.
+- **Recurrence logic** - completing a `daily` task marks the original done *and* creates a fresh task for the following day; a one-off task spawns no copy.
+- **Conflict detection** - two tasks in the same date+time slot produce a single warning naming both (including cross-pet clashes), while non-clashing or empty inputs return no warnings and never crash.
 
 ### Sample test run
 
@@ -140,12 +151,66 @@ WARNING - Conflict on 2026-07-05 at 09:00: Give the dog medication (Woofington),
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+PawPal+ runs as a Streamlit web app (`streamlit run app.py`). There is also a
+command-line demo (`python main.py`) that exercises the same backend logic.
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+### Main UI features
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+The Streamlit app lets a pet owner:
+
+- **Add pets** - enter a name and add as many pets as needed.
+- **Schedule tasks** - for a chosen pet, set a title, date, time, priority (High/Medium/Low), and how often it repeats (One-off / Daily / Weekly).
+- **Filter the task list** - narrow tasks by pet and/or by status (All / Pending / Completed).
+- **See conflict warnings** - clashing tasks are flagged at the top of the list before anything else.
+- **Complete tasks** - mark a pending task done; recurring tasks automatically reappear on their next date.
+- **Generate a daily plan** - build an ordered, de-conflicted schedule.
+
+### Example workflow
+
+1. **Add a pet** - type "Woofington" and click **Add pet**.
+2. **Schedule a task** - pick Woofington, title it "Give the dog medication," set the date and 09:00, priority High, Repeats "Daily," then click **Add task**.
+3. **Add another** - schedule "Take the cat to the vet" for Whiskers, also at 09:00.
+4. **View the schedule** - the task list appears sorted by time, and a conflict warning flags the two 09:00 tasks.
+5. **Complete a task** - mark the daily medication done; PawPal+ auto-schedules it again for the next day.
+
+### Key Scheduler behaviors shown
+
+- **Sorting** - tasks always display earliest-first, even though they were added out of order.
+- **Filtering** - the pet/status dropdowns show only the matching subset.
+- **Conflict warnings** - the two 09:00 tasks (across two different pets) trigger a single warning naming both.
+- **Recurrence** - completing the daily medication task spawns a fresh copy dated one day later.
+
+### Sample CLI output (`python main.py`)
+
+```
+All tasks (sorted by time):
+  2026-07-06 08:00 - Feed the dog (Woofington, DONE)
+  2026-07-07 08:00 - Feed the dog (Woofington, TO-DO)
+  2026-07-06 08:30 - Feed the cat (Whiskers, TO-DO)
+  2026-07-06 09:00 - Give the dog medication (Woofington, TO-DO)
+  2026-07-06 09:00 - Take the cat to the vet (Whiskers, TO-DO)
+  2026-07-06 17:00 - Walk the dog (Woofington, TO-DO)
+
+Pending only:
+  2026-07-07 08:00 - Feed the dog (Woofington, TO-DO)
+  2026-07-06 08:30 - Feed the cat (Whiskers, TO-DO)
+  2026-07-06 09:00 - Give the dog medication (Woofington, TO-DO)
+  2026-07-06 09:00 - Take the cat to the vet (Whiskers, TO-DO)
+  2026-07-06 17:00 - Walk the dog (Woofington, TO-DO)
+
+Completed only:
+  2026-07-06 08:00 - Feed the dog (Woofington, DONE)
+
+Woofington (dog):
+  2026-07-06 08:00 - Feed the dog (Woofington, DONE)
+  2026-07-07 08:00 - Feed the dog (Woofington, TO-DO)
+  2026-07-06 09:00 - Give the dog medication (Woofington, TO-DO)
+  2026-07-06 17:00 - Walk the dog (Woofington, TO-DO)
+
+Whiskers (cat):
+  2026-07-06 08:30 - Feed the cat (Whiskers, TO-DO)
+  2026-07-06 09:00 - Take the cat to the vet (Whiskers, TO-DO)
+
+Schedule conflicts:
+WARNING - Conflict on 2026-07-06 at 09:00: Give the dog medication (Woofington), Take the cat to the vet (Whiskers)
+```
